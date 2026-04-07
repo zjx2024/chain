@@ -1,8 +1,6 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/store/user'
-import router from '@/router'
 import { BusinessError, ErrorCode } from '@/types/error'
 
 const service: AxiosInstance = axios.create({
@@ -12,21 +10,9 @@ const service: AxiosInstance = axios.create({
 
 // 请求拦截器
 service.interceptors.request.use(
-  (config) => {
-    const userStore = useUserStore()
-    // 如果有token，添加到请求头
-    if (userStore.token) {
-      config.headers['Authorization'] = `Bearer ${userStore.token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (config) => config,
+  (error) => Promise.reject(error)
 )
-
-// 响应拦截器
-const publicPaths = ['/login', '/risk/status', '/risk/node']
 
 service.interceptors.response.use(
   (response) => {
@@ -37,34 +23,21 @@ service.interceptors.response.use(
     
     const res = response.data
     if (res.code !== ErrorCode.SUCCESS) {
-      // 根据错误码处理不同错误
       switch (res.code) {
         case ErrorCode.UNAUTHORIZED:
         case ErrorCode.TOKEN_EXPIRED:
         case ErrorCode.TOKEN_INVALID:
-          // 风险状态等公开页面可免登录访问，避免强制跳转
-          if (!publicPaths.includes(router.currentRoute.value.path)) {
-            const userStore = useUserStore()
-            userStore.logout()
-            router.push('/login')
-            ElMessage.error('登录已过期，请重新登录')
-          } else {
-            ElMessage.warning(res.message || '未登录或Token已过期')
-          }
+          ElMessage.warning(res.message || '当前接口未开放访问')
           break
-          
         case ErrorCode.FORBIDDEN:
-          ElMessage.error('没有权限访问')
+          ElMessage.error(res.message || '当前接口不允许访问')
           break
-          
         case ErrorCode.REQUEST_FREQUENT:
           ElMessage.warning('请求过于频繁，请稍后再试')
           break
-          
         case ErrorCode.PASSWORD_ERROR:
           ElMessage.error('密码错误')
           break
-          
         default:
           ElMessage.error(res.message || '请求错误')
       }
@@ -81,29 +54,17 @@ service.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
-          // 处理未授权错误
-          if (!publicPaths.includes(router.currentRoute.value.path)) {
-            const userStore = useUserStore()
-            userStore.logout()
-            router.push('/login')
-            ElMessage.error('登录已过期，请重新登录')
-          } else {
-            ElMessage.warning('未登录或Token已过期')
-          }
+          ElMessage.warning('当前接口未开放访问')
           break
-          
         case 403:
-          ElMessage.error('没有权限访问')
+          ElMessage.error('当前接口不允许访问')
           break
-          
         case 404:
           ElMessage.error('请求的资源不存在')
           break
-          
         case 500:
           ElMessage.error('服务器错误，请稍后重试')
           break
-          
         default:
           ElMessage.error('网络错误，请稍后重试')
       }
