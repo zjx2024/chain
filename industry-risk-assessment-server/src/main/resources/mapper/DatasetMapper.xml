@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.industryriskassessmentserver.mapper.DatasetMapper">
+    <select id="selectDatasetPage" resultType="com.example.industryriskassessmentserver.entity.Dataset">
+        SELECT 
+            d.*,
+            dt.name as type_name,
+            ic.name as industry_chain_name
+        FROM dataset d
+        LEFT JOIN dict_dataset_type dt ON d.type_code = dt.code
+        LEFT JOIN industry_chain ic ON d.industry_chain_id = ic.id
+        <where>
+            <if test="query.name != null and query.name != ''">
+                AND d.name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+            <if test="query.typeCode != null and query.typeCode != ''">
+                AND d.type_code = #{query.typeCode}
+            </if>
+            <if test="query.industryChainId != null">
+                AND d.industry_chain_id = #{query.industryChainId}
+            </if>
+            AND d.deleted = 0
+        </where>
+        ORDER BY d.data_period DESC
+    </select>
+</mapper> 

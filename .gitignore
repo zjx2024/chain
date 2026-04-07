@@ -1,0 +1,60 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Frontend: Vue / Vite
+industry-risk-assessment/node_modules/
+industry-risk-assessment/dist/
+industry-risk-assessment/.vite/
+industry-risk-assessment/npm-debug.log*
+industry-risk-assessment/yarn-debug.log*
+industry-risk-assessment/yarn-error.log*
+industry-risk-assessment/pnpm-debug.log*
+
+# Backend: Spring Boot / Maven
+industry-risk-assessment-server/target/
+industry-risk-assessment-server/.idea/
+industry-risk-assessment-server/.m2/
+
+# Java / IDE build files
+.classpath
+.project
+.settings/
+.factorypath
+*.class
+
+# Python caches / virtualenvs
+__pycache__/
+*.py[cod]
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+ENV/
+
+# Model training outputs and large generated artifacts
+models-storage/
+models/**/__pycache__/
+models/**/training_plots/
+models/**/model_save/
+models/**/embeddings_save/
+models/**/log/
+models/**/sh_result/
+
+# Logs / temp
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~

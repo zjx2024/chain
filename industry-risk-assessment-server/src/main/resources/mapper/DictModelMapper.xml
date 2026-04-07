@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.industryriskassessmentserver.mapper.DictModelMapper">
+
+    <!-- 根据任务类型ID获取可用模型列表 -->
+    <select id="getModelsByTaskTypeId" resultType="com.example.industryriskassessmentserver.entity.DictModel">
+        SELECT 
+            dm.id,
+            dm.code,
+            dm.name,
+            dm.description,
+            dm.model_path,
+            dm.create_time,
+            dm.update_time
+        FROM dict_model dm
+        INNER JOIN task_type_model ttm ON dm.id = ttm.model_id
+        WHERE ttm.task_type_id = #{taskTypeId}
+        ORDER BY dm.create_time ASC
+    </select>
+
+</mapper> 

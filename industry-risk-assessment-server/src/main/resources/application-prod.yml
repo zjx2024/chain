@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:production-db}:${MYSQL_PORT:3306}/industry_risk?useSSL=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:password}
+
+logging:
+  level:
+    root: warn
+    com.example.industryriskassessmentserver: info
+  file:
+    name: /var/log/industry-risk/application.log
+
+chain:
+  base-path: ${CHAIN_BASE_PATH:/data/chain}
+  python-env: ${CHAIN_PYTHON_ENV:/opt/conda/envs/Chain/bin/python}

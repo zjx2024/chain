@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.industryriskassessmentserver.mapper.DictOptimizerMapper">
+
+    <select id="getOptimizersByModelId" resultType="com.example.industryriskassessmentserver.entity.ModelOptimizer">
+        SELECT mo.id, mo.model_id, mo.optimizer_id, mo.default_lr, mo.create_time,
+               dm.name as model_name, 
+               do.name as optimizer_name
+        FROM model_optimizer mo
+        INNER JOIN dict_model dm ON mo.model_id = dm.id
+        INNER JOIN dict_optimizer do ON mo.optimizer_id = do.id
+        WHERE mo.model_id = #{modelId}
+        ORDER BY mo.id ASC
+    </select>
+
+</mapper> 

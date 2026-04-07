@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/industry_risk?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:zjx2815052.}
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.example.industryriskassessmentserver: debug
+
+chain:
+  base-path: ${CHAIN_BASE_PATH:E:/projects/chain}
+  python-env: ${CHAIN_PYTHON_ENV:D:/work/anaconda3/envs/Chain/python.exe}
