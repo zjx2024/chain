@@ -33,13 +33,55 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item>
+        <el-form-item label="完整性评估模型">
+          <el-select
+            v-model="filterForm.integrityModel"
+            placeholder="请选择完整性评估模型"
+            style="width: 360px"
+          >
+            <el-option
+              v-for="item in integrityModelOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="风险评估模型">
+          <el-select
+            v-model="filterForm.riskModel"
+            placeholder="请选择风险评估模型"
+            style="width: 360px"
+          >
+            <el-option
+              v-for="item in riskModelOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="风险预警模型">
+          <el-select
+            v-model="filterForm.warningModel"
+            placeholder="请选择风险预警模型"
+            style="width: 360px"
+          >
+            <el-option
+              v-for="item in warningModelOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item class="action-item">
           <el-button 
             type="primary" 
             @click="handleFilter"
-            :disabled="!filterForm.industryChainId || !filterForm.dataPeriod"
+            :disabled="!filterForm.industryChainId || !filterForm.dataPeriod || !filterForm.integrityModel || !filterForm.riskModel || !filterForm.warningModel"
           >
-            确定
+            评估
           </el-button>
           <el-button @click="resetFilter">重置</el-button>
         </el-form-item>
@@ -177,16 +219,66 @@ import type { IndustryChain } from '@/types/dataset'
 import { getIndustryChainGraph, getRiskOverview, type RiskOverview } from '@/api/riskStatus'
 import type { GraphData, GraphNode } from '@/types/graph'
 
+type GraphLayoutPoint = {
+  x: number
+  y: number
+}
+
 // 筛选表单数据
 const filterForm = ref({
   industryChainId: null as number | null,
-  dataPeriod: ''
+  dataPeriod: '',
+  integrityModel: '',
+  riskModel: '',
+  warningModel: ''
 })
 
 // 产业链选项
 const industryChainOptions = ref<IndustryChain[]>([])
 // 数据期间选项
 const periodOptions = ref<string[]>([])
+const integrityModelOptions = [
+  {
+    value: 'link-prediction-integrity',
+    label: '基于链接预测的产业链完整性评估模型'
+  },
+  {
+    value: 'graph-attention-message-passing-integrity',
+    label: '基于图注意力机制和消息传递网络的产业链完整性评估模型'
+  },
+  {
+    value: 'heterogeneous-attention-embedding-integrity',
+    label: '融合注意力机制的多边异质网络结构嵌入模型'
+  }
+]
+const riskModelOptions = [
+  {
+    value: 'han-risk',
+    label: '基于邻居采样和图注意力机制的风险评估模型'
+  },
+  {
+    value: 'hier-transfer-gnn-risk',
+    label: '基于分层知识可转移图神经网络的风险评估模型'
+  },
+  {
+    value: 'topology-attention-pooling-risk',
+    label: '融合图拓扑特征与注意力池化的产业链风险评估模型'
+  },
+  {
+    value: 'graph-fusion-attribute-completion-risk',
+    label: '结合图融合和属性补全的产业链风险评估模型'
+  }
+]
+const warningModelOptions = [
+  {
+    value: 'pca-cnn-warning',
+    label: '基于PCA-CNN的产业链风险预警模型'
+  },
+  {
+    value: 'hier-gnn-lstm-warning',
+    label: '结合层次图神经网络和LSTM的产业链风险预警模型'
+  }
+]
 
 // 加载状态
 const loading = ref(false)
@@ -205,6 +297,8 @@ const graphData = ref<GraphData>({
     { name: '公司' }
   ]
 })
+const graphDataCache = new Map<number, GraphData>()
+const graphLayoutCache = new Map<number, Record<string, GraphLayoutPoint>>()
 const adjacencyMap = ref<Record<string, string[]>>({})
 const nodeLookup = ref<Record<string, GraphNode>>({})
 const nodeAliasMap = ref<Record<string, string>>({})
@@ -213,6 +307,7 @@ let chart: echarts.ECharts | null = null
 const graphRendering = ref(false)
 const graphEmpty = ref(false)
 let graphEventsBound = false
+let graphFinishedBound = false
 
 const ensureChartInstance = () => {
   if (!chart && chartRef.value) {
@@ -331,6 +426,8 @@ const buildGraphCaches = () => {
 }
 
 const createGraphDataset = () => {
+  const currentIndustryChainId = filterForm.value.industryChainId
+  const layoutPositions = currentIndustryChainId ? graphLayoutCache.get(currentIndustryChainId) : undefined
   const nodes = graphData.value.nodes.map(node => {
     const canonicalId = node.id || node.name
     const isCompany = node.category === '公司'
@@ -338,6 +435,7 @@ const createGraphDataset = () => {
     const color = riskFlag ? '#F56C6C' : (isCompany ? '#409EFF' : '#67C23A')
     const baseSize = node.symbolSize || (isCompany ? 16 : 10)
     const size = riskFlag ? baseSize * 1.3 : baseSize
+    const position = canonicalId ? layoutPositions?.[canonicalId] : undefined
     return {
       id: canonicalId,
       name: node.name,
@@ -354,6 +452,9 @@ const createGraphDataset = () => {
         formatter: node.name,
         fontSize: 11
       },
+      x: position?.x,
+      y: position?.y,
+      fixed: Boolean(position),
       data: {
         ...node,
         riskFlag
@@ -414,18 +515,33 @@ const handleIndustryChainChange = async (value: number) => {
 }
 
 // 获取图谱数据
-const fetchGraphData = async () => {
-  if (!filterForm.value.industryChainId) {
+const fetchGraphData = async (forceRefresh = false, renderAfterLoad = true) => {
+  const industryChainId = filterForm.value.industryChainId
+  if (!industryChainId) {
     ElMessage.warning('请选择产业链')
     return
   }
-  
+
+  const cachedGraphData = !forceRefresh ? graphDataCache.get(industryChainId) : undefined
+  if (cachedGraphData) {
+    graphData.value = cachedGraphData
+    buildGraphCaches()
+    if (renderAfterLoad) {
+      await renderGraph()
+    }
+    return
+  }
+
   loading.value = true
   try {
-    const res = await getIndustryChainGraph(filterForm.value.industryChainId)
+    const res = await getIndustryChainGraph(industryChainId)
     graphData.value = res.data
+    graphDataCache.set(industryChainId, res.data)
+    graphLayoutCache.delete(industryChainId)
     buildGraphCaches()
-    await renderGraph()
+    if (renderAfterLoad) {
+      await renderGraph()
+    }
   } catch (error) {
     console.error('获取图谱数据失败', error)
     ElMessage.error('获取图谱数据失败')
@@ -435,7 +551,7 @@ const fetchGraphData = async () => {
 }
 
 // 获取风险概览数据
-const fetchRiskOverview = async () => {
+const fetchRiskOverview = async (renderGraphAfterLoad = true) => {
   if (!filterForm.value.industryChainId || !filterForm.value.dataPeriod) {
     return
   }
@@ -448,8 +564,8 @@ const fetchRiskOverview = async () => {
     )
     riskOverview.value = res.data
     initRiskChart()
-    if (chart) {
-      renderGraph()
+    if (chart && renderGraphAfterLoad) {
+      await renderGraph()
     }
   } catch (error: any) {
     console.error('获取风险概览数据失败', error)
@@ -466,24 +582,40 @@ const fetchRiskOverview = async () => {
 
 // 处理筛选
 const handleFilter = async () => {
-  if (!filterForm.value.industryChainId || !filterForm.value.dataPeriod) {
-    ElMessage.warning('请选择产业链和数据期间')
+  if (!filterForm.value.industryChainId || !filterForm.value.dataPeriod || !filterForm.value.integrityModel || !filterForm.value.riskModel || !filterForm.value.warningModel) {
+    ElMessage.warning('请完整选择产业链、数据期间、完整性评估模型、风险评估模型和风险预警模型')
     return
   }
   
-  // 先获取图谱数据
-  await fetchGraphData()
-  // 获取风险概览数据
-  await fetchRiskOverview()
+  // 图谱与期间无关，风险状态与期间有关；统一在数据就绪后只渲染一次图谱
+  await fetchGraphData(false, false)
+  await fetchRiskOverview(false)
+  await renderGraph()
 }
 
 // 重置筛选
 const resetFilter = () => {
   filterForm.value = {
     industryChainId: null,
-    dataPeriod: ''
+    dataPeriod: '',
+    integrityModel: '',
+    riskModel: '',
+    warningModel: ''
   }
   periodOptions.value = []
+  graphData.value = {
+    nodes: [],
+    links: [],
+    categories: [
+      { name: '产品' },
+      { name: '公司' }
+    ]
+  }
+  adjacencyMap.value = {}
+  nodeLookup.value = {}
+  nodeAliasMap.value = {}
+  graphEmpty.value = true
+  renderGraph()
 }
 
 // 图表相关
@@ -553,8 +685,35 @@ const resolveNodeByRef = (ref?: string) => {
   return nodeLookup.value[resolveCanonicalKey(ref)]
 }
 
+const captureGraphLayout = () => {
+  const industryChainId = filterForm.value.industryChainId
+  if (!chart || !industryChainId) return
+
+  const option = chart.getOption() as any
+  const seriesData = option?.series?.[0]?.data
+  if (!Array.isArray(seriesData) || !seriesData.length) return
+
+  const positions: Record<string, GraphLayoutPoint> = {}
+  seriesData.forEach((node: any) => {
+    const key = node?.id || node?.name
+    if (!key) return
+    const x = Number(node?.x)
+    const y = Number(node?.y)
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      positions[key] = { x, y }
+    }
+  })
+
+  if (Object.keys(positions).length > 0) {
+    graphLayoutCache.set(industryChainId, positions)
+  }
+}
+
 const buildGraphOption = (): echarts.EChartsOption => {
   const { nodes, edges } = createGraphDataset()
+  const currentIndustryChainId = filterForm.value.industryChainId
+  const currentLayoutCache = currentIndustryChainId ? graphLayoutCache.get(currentIndustryChainId) : undefined
+  const useStoredLayout = Boolean(currentLayoutCache && Object.keys(currentLayoutCache).length > 0)
   graphEmpty.value = nodes.length === 0
 
   return {
@@ -605,7 +764,7 @@ const buildGraphOption = (): echarts.EChartsOption => {
     series: [
       {
         type: 'graph',
-        layout: 'force',
+        layout: useStoredLayout ? 'none' : 'force',
         data: nodes,
         links: edges,
         categories: [
@@ -616,7 +775,7 @@ const buildGraphOption = (): echarts.EChartsOption => {
         edgeSymbol: ['none', 'arrow'],
         edgeSymbolSize: [0, 8],
         focusNodeAdjacency: true,
-        force: {
+        force: useStoredLayout ? undefined : {
           repulsion: 260,
           gravity: 0.02,
           edgeLength: [80, 160],
@@ -686,6 +845,13 @@ const renderGraph = async () => {
       })
       graphEventsBound = true
     }
+
+    if (!graphFinishedBound) {
+      chart.on('finished', () => {
+        captureGraphLayout()
+      })
+      graphFinishedBound = true
+    }
   } catch (error) {
     console.error('渲染图谱失败', error)
     graphEmpty.value = true
@@ -745,6 +911,7 @@ onUnmounted(() => {
   chart?.dispose()
   chart = null
   graphEventsBound = false
+  graphFinishedBound = false
   riskChartInstance.value?.dispose()
 })
 </script>
@@ -759,6 +926,22 @@ onUnmounted(() => {
   .filter-container {
     margin-bottom: 20px;
     padding-top: 16px;
+
+    :deep(.el-form) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px 12px;
+    }
+
+    :deep(.el-form-item) {
+      margin-bottom: 0;
+    }
+
+    :deep(.action-item) {
+      margin-left: 8px;
+    }
   }
   
   .content-container {
