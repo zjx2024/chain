@@ -4,7 +4,7 @@
       <template #header>
         <span>节点风险检索</span>
       </template>
-      <el-form :model="filterForm" inline label-width="90px" class="filter-form">
+      <el-form :model="filterForm" inline label-width="130px" class="filter-form">
         <el-form-item label="产业链">
           <el-select
             v-model="filterForm.industryChainId"
@@ -49,8 +49,42 @@
             style="width: 260px"
           />
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">确定</el-button>
+        <el-form-item label="节点风险评估模型">
+          <el-select
+            v-model="filterForm.riskModel"
+            placeholder="请选择节点风险评估模型"
+            style="width: 360px"
+          >
+            <el-option
+              v-for="item in riskModelOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="节点风险预警模型">
+          <el-select
+            v-model="filterForm.warningModel"
+            placeholder="请选择节点风险预警模型"
+            style="width: 360px"
+          >
+            <el-option
+              v-for="item in warningModelOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item class="action-item">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+            :disabled="!filterForm.industryChainId || !filterForm.dataPeriod || !filterForm.companyName || !filterForm.riskModel || !filterForm.warningModel"
+          >
+            评估
+          </el-button>
           <el-button @click="resetFilter">重置</el-button>
         </el-form-item>
       </el-form>
@@ -184,18 +218,50 @@ interface FilterForm {
   industryChainId: number | null
   dataPeriod: string
   companyName: string
+  riskModel: string
+  warningModel: string
 }
 
 const filterForm = ref<FilterForm>({
   industryChainId: null,
   dataPeriod: '',
-  companyName: ''
+  companyName: '',
+  riskModel: '',
+  warningModel: ''
 })
 
 const industryChainOptions = ref<IndustryChain[]>([])
 const industryChainLoading = ref(false)
 const periodOptions = ref<string[]>([])
 const periodLoading = ref(false)
+const riskModelOptions = [
+  {
+    value: 'han-risk',
+    label: '基于邻居采样和图注意力机制的风险评估模型'
+  },
+  {
+    value: 'hier-transfer-gnn-risk',
+    label: '基于分层知识可转移图神经网络的风险评估模型'
+  },
+  {
+    value: 'topology-attention-pooling-risk',
+    label: '融合图拓扑特征与注意力池化的产业链风险评估模型'
+  },
+  {
+    value: 'graph-fusion-attribute-completion-risk',
+    label: '结合图融合和属性补全的产业链风险评估模型'
+  }
+]
+const warningModelOptions = [
+  {
+    value: 'pca-cnn-warning',
+    label: '基于PCA-CNN的产业链风险预警模型'
+  },
+  {
+    value: 'hier-gnn-lstm-warning',
+    label: '结合层次图神经网络和LSTM的产业链风险预警模型'
+  }
+]
 
 const companyOptions = ref<string[]>([])
 
@@ -314,6 +380,10 @@ const handleSearch = async () => {
     ElMessage.warning('请输入公司名称')
     return
   }
+  if (!filterForm.value.riskModel || !filterForm.value.warningModel) {
+    ElMessage.warning('请选择节点风险评估模型和节点风险预警模型')
+    return
+  }
 
   resultLoading.value = true
   hasSearched.value = true
@@ -350,7 +420,9 @@ const resetFilter = () => {
   filterForm.value = {
     industryChainId: null,
     dataPeriod: '',
-    companyName: ''
+    companyName: '',
+    riskModel: '',
+    warningModel: ''
   }
   periodOptions.value = []
   companyOptions.value = []
@@ -625,7 +697,20 @@ watch(riskResult, () => {
     display: flex;
     flex-wrap: wrap;
     gap: 12px 32px;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: center;
+
+    :deep(.el-form-item) {
+      margin-bottom: 0;
+    }
+
+    :deep(.el-form-item__label) {
+      white-space: nowrap;
+    }
+
+    :deep(.action-item) {
+      margin-left: 8px;
+    }
   }
 
   .content-area {
